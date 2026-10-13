@@ -1,10 +1,11 @@
-test_that("ragnar_find_links() returns a character vector when there are no links", {
+test_that("ragnar_find_links() returns only the root URL when there are no links", {
   html <- withr::local_tempfile(
     fileext = ".html",
     lines = "<html><body><p>No links.</p></body></html>"
   )
 
-  expect_equal(ragnar_find_links(html), character(), ignore_attr = TRUE)
+  result <- ragnar_find_links(html)
+  expect_equal(result, html, ignore_attr = TRUE)
 })
 
 test_that("ragnar_find_links() returns no links when no children match", {
@@ -170,11 +171,13 @@ test_that("ragnar_find_links() returns sorted, unique links", {
     )
   )
 
-  expect_equal(
-    ragnar_find_links(html),
-    c("https://example.com/a", "https://example.com/b"),
-    ignore_attr = TRUE
-  )
+  result <- ragnar_find_links(html)
+  # root is included, child links are deduplicated and sorted
+  expect_true(html %in% result)
+  expect_true("https://example.com/a" %in% result)
+  expect_true("https://example.com/b" %in% result)
+  expect_false("https://example.com/b#section" %in% result)
+  expect_equal(result, sort(unique(result)), ignore_attr = TRUE)
 })
 
 test_that("ragnar_find_links() children_only=TRUE scopes to start URL stem, not site root", {
@@ -222,6 +225,16 @@ test_that("ragnar_find_links() excludes .md source file links", {
   result <- ragnar_find_links(html)
   expect_false(any(grepl("\\.md$", result)))
   expect_true(any(grepl("page\\.html$", result)))
+})
+
+test_that("ragnar_find_links() includes the root URL in its results", {
+  html <- withr::local_tempfile(
+    fileext = ".html",
+    lines = '<html><body><a href="https://example.com/page">Page</a></body></html>'
+  )
+
+  result <- ragnar_find_links(html)
+  expect_true(html %in% result)
 })
 
 test_that("ragnar_find_links() excludes links with doubled path segments", {
